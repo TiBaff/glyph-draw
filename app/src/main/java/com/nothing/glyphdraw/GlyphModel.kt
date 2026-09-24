@@ -1,66 +1,58 @@
 package com.nothing.glyphdraw
 
 enum class StripType {
-    RIGHT_ARC,   // Правая дуга
-    LEFT_ARC,    // Левая дуга
-    SLASH        // Нижний слэш (снизу-слева)
+    UPPER_ARC,     // Long upper-right curved strip (24 segments)
+    LEFT_ARC,      // Left vertical curved strip (6 segments)
+    BOTTOM_STRIP   // Lower slanted/horizontal strip (4 segments)
 }
 
 data class GlyphSegmentDef(
     val id: Int,
     val strip: StripType,
     val startAngleDeg: Float,
-    val sweepAngleDeg: Float,
-    val label: String
+    val sweepAngleDeg: Float
 )
 
 object GlyphLayoutData {
-    // Делаем чёткую видимую СЕТКУ сегментов:
-    // 1. Правая дуга: разбита на 10 отчётливых сегментов (Сетка)
-    val rightArcSegments: List<GlyphSegmentDef> = (0 until 10).map { i ->
-        val totalSweep = 90f
-        val step = totalSweep / 10f
-        val gap = 1.6f
-        val start = -45f + i * step
+    // 24 addressable segments along upper-right arc (-30° to 120°)
+    val upperArcSegments: List<GlyphSegmentDef> = (0 until 24).map { i ->
+        val totalSweep = 145f
+        val step = totalSweep / 24f
+        val start = -25f + i * step
         GlyphSegmentDef(
-            id = i, // 0..9
-            strip = StripType.RIGHT_ARC,
+            id = i,
+            strip = StripType.UPPER_ARC,
             startAngleDeg = start,
-            sweepAngleDeg = step - gap,
-            label = "R$i"
+            sweepAngleDeg = step * 0.82f // small gap between segments like Block Blast grid
         )
     }
 
-    // 2. Левая дуга: разбита на 6 сегментов (Сетка)
+    // 6 segments along left arc (145° to 215°)
     val leftArcSegments: List<GlyphSegmentDef> = (0 until 6).map { i ->
-        val totalSweep = 70f
+        val totalSweep = 68f
         val step = totalSweep / 6f
-        val gap = 1.8f
-        val start = 145f + i * step
+        val start = 146f + i * step
         GlyphSegmentDef(
-            id = 10 + i, // 10..15
+            id = 24 + i,
             strip = StripType.LEFT_ARC,
             startAngleDeg = start,
-            sweepAngleDeg = step - gap,
-            label = "L$i"
+            sweepAngleDeg = step * 0.80f
         )
     }
 
-    // 3. Нижний слэш (снизу-слева, 7-8 часов): разбит на 4 сегмента (Сетка)
-    val slashSegments: List<GlyphSegmentDef> = (0 until 4).map { i ->
-        val totalSweep = 36f
+    // 4 segments along bottom strip (240° to 295°)
+    val bottomStripSegments: List<GlyphSegmentDef> = (0 until 4).map { i ->
+        val totalSweep = 52f
         val step = totalSweep / 4f
-        val gap = 1.8f
-        val start = 105f + i * step
+        val start = 242f + i * step
         GlyphSegmentDef(
-            id = 16 + i, // 16..19
-            strip = StripType.SLASH,
+            id = 30 + i,
+            strip = StripType.BOTTOM_STRIP,
             startAngleDeg = start,
-            sweepAngleDeg = step - gap,
-            label = "S$i"
+            sweepAngleDeg = step * 0.80f
         )
     }
 
-    val allSegments: List<GlyphSegmentDef> = rightArcSegments + leftArcSegments + slashSegments
-    const val TOTAL_SEGMENTS = 20
+    val allSegments: List<GlyphSegmentDef> = upperArcSegments + leftArcSegments + bottomStripSegments
+    const val TOTAL_SEGMENTS = 34
 }
