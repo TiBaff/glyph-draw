@@ -3,18 +3,27 @@ package com.nothing.glyphdraw
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.BrightnessMedium
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -22,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -58,12 +68,19 @@ fun GlyphDrawScreen(
     onUpdateHardware: (Set<Int>, Float) -> Unit,
     onBackPress: () -> Unit
 ) {
+    // Current painted segments (0..33)
     var activeSegments by remember { mutableStateOf(setOf<Int>()) }
+
+    // History stacks for Undo / Redo
     var undoStack by remember { mutableStateOf(listOf<Set<Int>>()) }
     var redoStack by remember { mutableStateOf(listOf<Set<Int>>()) }
+
+    // Brightness 0f .. 1f
     var brightness by remember { mutableFloatStateOf(1.0f) }
+
     var showMenu by remember { mutableStateOf(false) }
 
+    // Notify hardware whenever state changes
     LaunchedEffect(activeSegments, brightness) {
         onUpdateHardware(activeSegments, brightness)
     }
@@ -101,7 +118,11 @@ fun GlyphDrawScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AmoledBlack),
                 navigationIcon = {
                     IconButton(onClick = onBackPress) {
-                        Text("←", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
                     }
                 },
                 title = {
@@ -115,33 +136,35 @@ fun GlyphDrawScreen(
                     )
                 },
                 actions = {
-                    // Undo text/icon button
+                    // Undo
                     IconButton(
                         onClick = { handleUndo() },
                         enabled = undoStack.isNotEmpty()
                     ) {
-                        Text(
-                            text = "↶",
-                            color = if (undoStack.isNotEmpty()) Color.White else Color(0xFF444444),
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Undo,
+                            contentDescription = "Undo",
+                            tint = if (undoStack.isNotEmpty()) Color.White else Color(0xFF444444)
                         )
                     }
-                    // Redo text/icon button
+                    // Redo
                     IconButton(
                         onClick = { handleRedo() },
                         enabled = redoStack.isNotEmpty()
                     ) {
-                        Text(
-                            text = "↷",
-                            color = if (redoStack.isNotEmpty()) Color.White else Color(0xFF444444),
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Redo,
+                            contentDescription = "Redo",
+                            tint = if (redoStack.isNotEmpty()) Color.White else Color(0xFF444444)
                         )
                     }
                     // Menu
                     IconButton(onClick = { showMenu = !showMenu }) {
-                        Text("⋮", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "More",
+                            tint = Color.White
+                        )
                     }
                     DropdownMenu(
                         expanded = showMenu,
@@ -183,6 +206,7 @@ fun GlyphDrawScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
+            // Interactive 2D Glyph Drawing Canvas
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -192,18 +216,28 @@ fun GlyphDrawScreen(
                 GlyphInteractiveCanvas(
                     activeSegments = activeSegments,
                     brightness = brightness,
+                    onSegmentToggled = { segId ->
+                        val updated = if (segId in activeSegments) {
+                            activeSegments - segId
+                        } else {
+                            activeSegments + segId
+                        }
+                        pushState(updated)
+                    },
                     onSegmentsDrawn = { newActive ->
                         pushState(newActive)
                     }
                 )
             }
 
+            // Bottom Controls (Material You style on pure black)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Quick Action Buttons
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -241,6 +275,7 @@ fun GlyphDrawScreen(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
+                // Brightness Slider Card
                 Card(
                     shape = RoundedCornerShape(20.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF141414)),
@@ -255,11 +290,11 @@ fun GlyphDrawScreen(
                             .padding(horizontal = 16.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = "☀",
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold
+                        Icon(
+                            imageVector = Icons.Default.BrightnessMedium,
+                            contentDescription = "Brightness",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Slider(
@@ -293,24 +328,29 @@ fun GlyphDrawScreen(
 fun GlyphInteractiveCanvas(
     activeSegments: Set<Int>,
     brightness: Float,
+    onSegmentToggled: (Int) -> Unit,
     onSegmentsDrawn: (Set<Int>) -> Unit
 ) {
     var canvasCenter by remember { mutableStateOf(Offset.Zero) }
     var trackRadius by remember { mutableFloatStateOf(0f) }
     var trackThickness by remember { mutableFloatStateOf(0f) }
 
+    // Helper to test if touch coordinate falls inside a segment
     fun findSegmentAtPoint(touch: Offset): Int? {
         val dx = touch.x - canvasCenter.x
         val dy = touch.y - canvasCenter.y
         val dist = sqrt(dx * dx + dy * dy)
 
+        // Check if within track radius
         val innerR = trackRadius - trackThickness / 2f - 18f
         val outerR = trackRadius + trackThickness / 2f + 18f
         if (dist !in innerR..outerR) return null
 
+        // Convert angle to degrees 0..360
         var angleDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
         if (angleDeg < 0) angleDeg += 360f
 
+        // Check each segment
         for (seg in GlyphLayoutData.allSegments) {
             var start = seg.startAngleDeg
             if (start < 0) start += 360f
@@ -379,17 +419,20 @@ fun GlyphInteractiveCanvas(
             trackThickness = 22.dp.toPx()
 
             // 1. Draw 2D Front-Facing Camera Module (Nothing Phone 3a Pro style)
+            // Outer circular island
             drawCircle(
                 color = Color(0xFF141414),
                 radius = cameraRadius,
                 center = center
             )
+            // Outer border
             drawCircle(
                 color = Color(0xFF242424),
                 radius = cameraRadius,
                 center = center,
                 style = Stroke(width = 2.dp.toPx())
             )
+            // Subtle concentric decorative ring
             drawCircle(
                 color = Color(0xFF1A1A1A),
                 radius = cameraRadius * 0.88f,
@@ -397,7 +440,7 @@ fun GlyphInteractiveCanvas(
                 style = Stroke(width = 1.dp.toPx())
             )
 
-            // Twin camera cutouts
+            // Left Pill: Twin camera cutouts
             val pillWidth = cameraRadius * 0.65f
             val pillHeight = cameraRadius * 1.15f
             val pillLeft = center.x - cameraRadius * 0.68f
@@ -409,18 +452,20 @@ fun GlyphInteractiveCanvas(
                 cornerRadius = CornerRadius(pillWidth / 2f, pillWidth / 2f)
             )
 
+            // Top camera lens inside pill
             val lens1Center = Offset(pillLeft + pillWidth / 2f, pillTop + pillHeight * 0.30f)
             val lensRadius = pillWidth * 0.34f
             drawCircle(color = Color(0xFF050505), radius = lensRadius, center = lens1Center)
             drawCircle(color = Color(0xFF2C2C2C), radius = lensRadius, center = lens1Center, style = Stroke(2.dp.toPx()))
             drawCircle(color = Color(0xFF111111), radius = lensRadius * 0.6f, center = lens1Center)
 
+            // Bottom camera lens inside pill
             val lens2Center = Offset(pillLeft + pillWidth / 2f, pillTop + pillHeight * 0.70f)
             drawCircle(color = Color(0xFF050505), radius = lensRadius, center = lens2Center)
             drawCircle(color = Color(0xFF2C2C2C), radius = lensRadius, center = lens2Center, style = Stroke(2.dp.toPx()))
             drawCircle(color = Color(0xFF111111), radius = lensRadius * 0.6f, center = lens2Center)
 
-            // Right sensor block
+            // Right Sensor / Flash Rectangles
             val sensorLeft = center.x + cameraRadius * 0.05f
             val sensorTop = center.y - cameraRadius * 0.35f
             val sensorWidth = cameraRadius * 0.50f
@@ -431,6 +476,7 @@ fun GlyphInteractiveCanvas(
                 size = Size(sensorWidth, sensorHeight),
                 cornerRadius = CornerRadius(12.dp.toPx(), 12.dp.toPx())
             )
+            // Sensor aperture
             drawCircle(
                 color = Color(0xFF080808),
                 radius = sensorWidth * 0.28f,
@@ -443,7 +489,7 @@ fun GlyphInteractiveCanvas(
                 style = Stroke(1.5.dp.toPx())
             )
 
-            // 2. Draw Glyph Segments
+            // 2. Draw Glyph Segments along curved tracks in Block Blast grid style
             val arcRect = Rect(
                 center.x - trackRadius,
                 center.y - trackRadius,
@@ -454,6 +500,7 @@ fun GlyphInteractiveCanvas(
             GlyphLayoutData.allSegments.forEach { seg ->
                 val isOn = seg.id in currentDisplaySegments
 
+                // Base arc segment (off state: dark grid cell)
                 drawArc(
                     color = if (isOn) SegmentOnColor else SegmentOffColor,
                     startAngle = seg.startAngleDeg,
@@ -467,6 +514,7 @@ fun GlyphInteractiveCanvas(
                     )
                 )
 
+                // Grid cell border
                 drawArc(
                     color = if (isOn) Color.White.copy(alpha = 0.9f) else SegmentOffBorder,
                     startAngle = seg.startAngleDeg,
@@ -480,6 +528,7 @@ fun GlyphInteractiveCanvas(
                     )
                 )
 
+                // Neon glow aura when ON
                 if (isOn) {
                     drawArc(
                         color = Color.White.copy(alpha = 0.35f * brightness),
