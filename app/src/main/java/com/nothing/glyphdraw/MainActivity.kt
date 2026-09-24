@@ -10,9 +10,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -104,11 +101,7 @@ fun GlyphDrawScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = AmoledBlack),
                 navigationIcon = {
                     IconButton(onClick = onBackPress) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White
-                        )
+                        Text("←", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     }
                 },
                 title = {
@@ -148,11 +141,7 @@ fun GlyphDrawScreen(
                     }
                     // Menu
                     IconButton(onClick = { showMenu = !showMenu }) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "More",
-                            tint = Color.White
-                        )
+                        Text("⋮", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     }
                     DropdownMenu(
                         expanded = showMenu,
