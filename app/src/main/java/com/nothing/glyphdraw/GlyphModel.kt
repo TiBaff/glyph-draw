@@ -1,9 +1,9 @@
 package com.nothing.glyphdraw
 
 enum class StripType {
-    UPPER_ARC,     // Long upper-right curved strip (24 segments)
-    LEFT_ARC,      // Left vertical curved strip (6 segments)
-    BOTTOM_STRIP   // Lower slanted/horizontal strip (4 segments)
+    ZONE_C_RIGHT_ARC,   // C1 - C20: Right Arc (20 segments, ArrayIndex 0..19)
+    ZONE_A_LEFT_ARC,    // A1 - A11: Left Arc (11 segments, ArrayIndex 20..30)
+    ZONE_B_BOTTOM_SLASH // B1 - B5:  Bottom-Left Slash (5 segments, ArrayIndex 31..35)
 }
 
 data class GlyphSegmentDef(
@@ -14,45 +14,47 @@ data class GlyphSegmentDef(
 )
 
 object GlyphLayoutData {
-    // 24 addressable segments along upper-right arc (-30° to 120°)
-    val upperArcSegments: List<GlyphSegmentDef> = (0 until 24).map { i ->
-        val totalSweep = 145f
-        val step = totalSweep / 24f
-        val start = -25f + i * step
+    const val TOTAL_SEGMENTS = 36
+
+    // Official Nothing Phone (3a) Pro table:
+    // C1..C20: C_1 is bottom-right/lower end, C_20 is top-right/upper end (Indices 0..19)
+    val zoneCSegments: List<GlyphSegmentDef> = (0 until 20).map { i ->
+        val totalSweep = 100f
+        val step = totalSweep / 20f
+        val start = 50f - (i + 1) * step
         GlyphSegmentDef(
             id = i,
-            strip = StripType.UPPER_ARC,
-            startAngleDeg = start,
-            sweepAngleDeg = step * 0.82f // small gap between segments like Block Blast grid
-        )
-    }
-
-    // 6 segments along left arc (145° to 215°)
-    val leftArcSegments: List<GlyphSegmentDef> = (0 until 6).map { i ->
-        val totalSweep = 68f
-        val step = totalSweep / 6f
-        val start = 146f + i * step
-        GlyphSegmentDef(
-            id = 24 + i,
-            strip = StripType.LEFT_ARC,
+            strip = StripType.ZONE_C_RIGHT_ARC,
             startAngleDeg = start,
             sweepAngleDeg = step * 0.80f
         )
     }
 
-    // 4 segments along bottom strip (240° to 295°)
-    val bottomStripSegments: List<GlyphSegmentDef> = (0 until 4).map { i ->
-        val totalSweep = 52f
-        val step = totalSweep / 4f
-        val start = 242f + i * step
+    // A1..A11: A_1 is top, A_11 is bottom (Indices 20..30)
+    val zoneASegments: List<GlyphSegmentDef> = (0 until 11).map { i ->
+        val totalSweep = 90f
+        val step = totalSweep / 11f
+        val start = 135f + i * step
         GlyphSegmentDef(
-            id = 30 + i,
-            strip = StripType.BOTTOM_STRIP,
+            id = 20 + i,
+            strip = StripType.ZONE_A_LEFT_ARC,
             startAngleDeg = start,
             sweepAngleDeg = step * 0.80f
         )
     }
 
-    val allSegments: List<GlyphSegmentDef> = upperArcSegments + leftArcSegments + bottomStripSegments
-    const val TOTAL_SEGMENTS = 34
+    // B1..B5: B_1 is bottom-right, B_5 is top-left (Indices 31..35)
+    val zoneBSegments: List<GlyphSegmentDef> = (0 until 5).map { i ->
+        val totalSweep = 45f
+        val step = totalSweep / 5f
+        val start = 275f - (i + 1) * step
+        GlyphSegmentDef(
+            id = 31 + i,
+            strip = StripType.ZONE_B_BOTTOM_SLASH,
+            startAngleDeg = start,
+            sweepAngleDeg = step * 0.80f
+        )
+    }
+
+    val allSegments: List<GlyphSegmentDef> = zoneCSegments + zoneASegments + zoneBSegments
 }
