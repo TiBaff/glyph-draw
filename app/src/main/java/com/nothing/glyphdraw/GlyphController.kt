@@ -65,7 +65,6 @@ class GlyphController(private val context: Context) {
     private fun initSession() {
         val binder = glyphServiceBinder ?: return
 
-        // 1. Transaction 4: register(targetDevice)
         val possibleDeviceIds = listOf("24111", "DEVICE_24111", "test")
         val tokensToTry = listOf(
             boundInterfaceToken,
@@ -97,7 +96,6 @@ class GlyphController(private val context: Context) {
             }
         }
 
-        // 2. Transaction 2: openSession()
         try {
             val data = Parcel.obtain()
             val reply = Parcel.obtain()
@@ -115,40 +113,70 @@ class GlyphController(private val context: Context) {
         }
     }
 
+    // Direct Single-Channel test for diagnostic mode
+    fun sendSingleChannel(channelIndex: Int, brightness: Float) {
+        val binder = glyphServiceBinder ?: return
+        val maxLevel = (brightness * 4095).toInt().coerceIn(0, 4095)
+        val colors = IntArray(36) { 0 }
+        if (channelIndex in 0 until 36) {
+            colors[channelIndex] = maxLevel
+        }
+        sendColors(colors)
+    }
+
     fun updateHardware(activeSegments: Set<Int>, brightness: Float) {
         val binder = glyphServiceBinder ?: return
-
-        // Nothing Phone (3a) Pro has 3 physical strips:
-        // ID 0: Left Arc (Левая дуга)
-        // ID 1: Bottom-Left Slash (Нижний слэш)
-        // ID 2: Right Arc (Правая дуга)
-        //
-        // On Nothing OS setFrameColors accepts brightness per strip:
-        // Index 0 = Left Arc, Index 1 = Slash, Index 2 = Right Arc
-        // In case driver expects the 36-channel array:
-        // Left: 20..30, Slash: 31..35, Right: 0..19
         val maxLevel = (brightness * 4095).toInt().coerceIn(0, 4095)
         val colors = IntArray(36) { 0 }
 
-        // 1. Set direct 3-strip channels (0, 1, 2)
-        if (0 in activeSegments) colors[0] = maxLevel // Left
-        if (1 in activeSegments) colors[1] = maxLevel // Slash
-        if (2 in activeSegments) colors[2] = maxLevel // Right
+        // Empirical findings from user testing on Nothing Phone (3a) Pro:
+        // Channel 0 = Right strip
+        // Channel 2 = Left strip
+        // Channel 3 = Slash (Bottom-left)
+        //
+        // On screen:
+        // Segment IDs 0..9: Right Arc
+        // Segment IDs 10..15: Left Arc
+        // Segment IDs 16..19: Slash (Bottom-Left)
+        val rightActive = (0..9).any { it in activeSegments }
+        val leftActive = (10..15).any { it in activeSegments }
+        val slashActive = (16..19).any { it in activeSegments }
 
-        // 2. Set multi-LED sub-channels for each zone
-        if (2 in activeSegments) {
-            // Right Arc: 0..19 (only if channel 0-2 isn't exclusive)
-            for (i in 3 until 20) colors[i] = maxLevel
-        }
-        if (0 in activeSegments) {
-            // Left Arc: 20..30
-            for (i in 20..30) colors[i] = maxLevel
-        }
-        if (1 in activeSegments) {
-            // Slash: 31..35
-            for (i in 31..35) colors[i] = maxLevel
+        if (rightActive) {
+            colors[0] = maxLevel
+            // If right strip has progressive LEDs:
+            (0..9).forEach { segId ->
+                if (segId in activeSegments) colors[segId] = maxLevel
+            }
         }
 
+        if (leftActive) {
+            colors[2] = maxLevel
+            // Also map sub-LEDs if individual
+            (10..15).forEach { segId ->
+                if (segId in activeSegments) {
+                    val offset = segId - 10 + 20
+                    if (offset < 36) colors[offset] = maxLevel
+                }
+            }
+        }
+
+        if (slashActive) {
+            colors[3] = maxLevel
+            colors[4] = maxLevel // Fallback for slash
+            (16..19).forEach { segId ->
+                if (segId in activeSegments) {
+                    val offset = segId - 16 + 31
+                    if (offset < 36) colors[offset] = maxLevel
+                }
+            }
+        }
+
+        sendColors(colors)
+    }
+
+    private fun sendColors(colors: IntArray) {
+        val binder = glyphServiceBinder ?: return
         val tokens = listOf(boundInterfaceToken, "com.nothing.ketchum.service.IGlyphService", "com.nothing.thirdparty.IGlyphService")
         for (token in tokens) {
             try {
@@ -165,9 +193,9 @@ class GlyphController(private val context: Context) {
                     reply.recycle()
                 }
             } catch (e: Exception) {
-                // Fallback with 255 scaling
+                // Fallback 255 scaling
                 try {
-                    val colors255 = IntArray(36) { if (colors[it] > 0) (brightness * 255).toInt() else 0 }
+                    val colors255 = IntArray(colors.size) { if (colors[it] > 0) 255 else 0 }
                     val data = Parcel.obtain()
                     val reply = Parcel.obtain()
                     try {
@@ -180,7 +208,7 @@ class GlyphController(private val context: Context) {
                         reply.recycle()
                     }
                 } catch (ex: Exception) {
-                    // Try next
+                    // Ignore
                 }
             }
         }
