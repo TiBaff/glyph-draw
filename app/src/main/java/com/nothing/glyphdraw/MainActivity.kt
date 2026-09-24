@@ -52,11 +52,8 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-val AmoledBlack = Color(0xFF000000)
-val CardBackground = Color(0xFF101010)
-val SegmentOffColor = Color(0xFF1E1E1E)
-val SegmentOffBorder = Color(0xFF333333)
-val SegmentOnColor = Color(0xFFFFFFFF)
+// Using colors from Theme.kt
+private val CardBackground = Color(0xFF101010)
 
 @Composable
 fun GlyphDrawScreen(glyphController: GlyphController) {
