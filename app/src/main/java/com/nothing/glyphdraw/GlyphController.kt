@@ -65,7 +65,7 @@ class GlyphController(private val context: Context) {
     private fun initSession() {
         val binder = glyphServiceBinder ?: return
 
-        // Transaction 4: register(targetDevice)
+        // 1. Transaction 4: register(targetDevice)
         val possibleDeviceIds = listOf("24111", "DEVICE_24111", "test")
         val tokensToTry = listOf(
             boundInterfaceToken,
@@ -97,7 +97,7 @@ class GlyphController(private val context: Context) {
             }
         }
 
-        // Transaction 2: openSession()
+        // 2. Transaction 2: openSession()
         try {
             val data = Parcel.obtain()
             val reply = Parcel.obtain()
@@ -118,13 +118,35 @@ class GlyphController(private val context: Context) {
     fun updateHardware(activeSegments: Set<Int>, brightness: Float) {
         val binder = glyphServiceBinder ?: return
 
-        // Official Nothing Phone (3a) / (3a) Pro Mapping:
-        // C1 - C20 (ArrayIndex 0..19): Zone C (Right Arc, 20 segments)
-        // A1 - A11 (ArrayIndex 20..30): Zone A (Left Arc, 11 segments)
-        // B1 - B5  (ArrayIndex 31..35): Zone B (Bottom-Left Slash, 5 segments)
+        // Nothing Phone (3a) Pro has 3 physical strips:
+        // ID 0: Left Arc (Левая дуга)
+        // ID 1: Bottom-Left Slash (Нижний слэш)
+        // ID 2: Right Arc (Правая дуга)
+        //
+        // On Nothing OS setFrameColors accepts brightness per strip:
+        // Index 0 = Left Arc, Index 1 = Slash, Index 2 = Right Arc
+        // In case driver expects the 36-channel array:
+        // Left: 20..30, Slash: 31..35, Right: 0..19
         val maxLevel = (brightness * 4095).toInt().coerceIn(0, 4095)
-        val colors = IntArray(36) { i ->
-            if (i in activeSegments) maxLevel else 0
+        val colors = IntArray(36) { 0 }
+
+        // 1. Set direct 3-strip channels (0, 1, 2)
+        if (0 in activeSegments) colors[0] = maxLevel // Left
+        if (1 in activeSegments) colors[1] = maxLevel // Slash
+        if (2 in activeSegments) colors[2] = maxLevel // Right
+
+        // 2. Set multi-LED sub-channels for each zone
+        if (2 in activeSegments) {
+            // Right Arc: 0..19 (only if channel 0-2 isn't exclusive)
+            for (i in 3 until 20) colors[i] = maxLevel
+        }
+        if (0 in activeSegments) {
+            // Left Arc: 20..30
+            for (i in 20..30) colors[i] = maxLevel
+        }
+        if (1 in activeSegments) {
+            // Slash: 31..35
+            for (i in 31..35) colors[i] = maxLevel
         }
 
         val tokens = listOf(boundInterfaceToken, "com.nothing.ketchum.service.IGlyphService", "com.nothing.thirdparty.IGlyphService")
@@ -143,8 +165,9 @@ class GlyphController(private val context: Context) {
                     reply.recycle()
                 }
             } catch (e: Exception) {
+                // Fallback with 255 scaling
                 try {
-                    val colors255 = IntArray(36) { if (it in activeSegments) (brightness * 255).toInt() else 0 }
+                    val colors255 = IntArray(36) { if (colors[it] > 0) (brightness * 255).toInt() else 0 }
                     val data = Parcel.obtain()
                     val reply = Parcel.obtain()
                     try {

@@ -52,7 +52,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// Using colors from Theme.kt
 private val CardBackground = Color(0xFF101010)
 
 @Composable
@@ -108,7 +107,7 @@ fun GlyphDrawScreen(glyphController: GlyphController) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 8.dp),
+                .padding(vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -138,7 +137,7 @@ fun GlyphDrawScreen(glyphController: GlyphController) {
             }
         }
 
-        // Main Drawing Canvas for Phone (3a) Pro
+        // Phone (3a) Pro Drawing Canvas
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -154,12 +153,68 @@ fun GlyphDrawScreen(glyphController: GlyphController) {
             )
         }
 
+        // Quick Direct Strip Toggles (3 individual lights)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Left Arc: ID 0
+            val isLeftOn = 0 in activeSegments
+            Button(
+                onClick = {
+                    pushState(if (isLeftOn) activeSegments - 0 else activeSegments + 0)
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isLeftOn) Color.White else CardBackground,
+                    contentColor = if (isLeftOn) Color.Black else Color.White
+                ),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("Левая", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
+
+            // Slash: ID 1
+            val isSlashOn = 1 in activeSegments
+            Button(
+                onClick = {
+                    pushState(if (isSlashOn) activeSegments - 1 else activeSegments + 1)
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isSlashOn) Color.White else CardBackground,
+                    contentColor = if (isSlashOn) Color.Black else Color.White
+                ),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("Слэш", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
+
+            // Right Arc: ID 2
+            val isRightOn = 2 in activeSegments
+            Button(
+                onClick = {
+                    pushState(if (isRightOn) activeSegments - 2 else activeSegments + 2)
+                },
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isRightOn) Color.White else CardBackground,
+                    contentColor = if (isRightOn) Color.Black else Color.White
+                ),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("Правая", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+
         // Control Panel
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Action Buttons
             Row(
@@ -176,7 +231,7 @@ fun GlyphDrawScreen(glyphController: GlyphController) {
                 }
 
                 Button(
-                    onClick = { pushState((0 until GlyphLayoutData.TOTAL_SEGMENTS).toSet()) },
+                    onClick = { pushState(setOf(0, 1, 2)) },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = CardBackground),
                     shape = RoundedCornerShape(12.dp)
@@ -186,7 +241,7 @@ fun GlyphDrawScreen(glyphController: GlyphController) {
 
                 Button(
                     onClick = {
-                        val all = (0 until GlyphLayoutData.TOTAL_SEGMENTS).toSet()
+                        val all = setOf(0, 1, 2)
                         pushState(all - activeSegments)
                     },
                     modifier = Modifier.weight(1f),
@@ -253,8 +308,8 @@ fun GlyphDrawingCanvas(
         val dy = touch.y - canvasCenter.y
         val dist = sqrt(dx * dx + dy * dy)
 
-        val innerR = trackRadius - trackThickness / 2f - 24f
-        val outerR = trackRadius + trackThickness / 2f + 24f
+        val innerR = trackRadius - trackThickness / 2f - 30f
+        val outerR = trackRadius + trackThickness / 2f + 30f
         if (dist !in innerR..outerR) return null
 
         var angleDeg = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat()
@@ -325,8 +380,8 @@ fun GlyphDrawingCanvas(
 
             val baseRadius = size.minDimension * 0.40f
             val cameraRadius = baseRadius * 0.72f
-            trackRadius = baseRadius * 0.94f
-            trackThickness = 22.dp.toPx()
+            trackRadius = baseRadius * 0.96f
+            trackThickness = 24.dp.toPx()
 
             // 1. Draw Phone (3a) Pro Camera Module
             drawCircle(
@@ -352,7 +407,7 @@ fun GlyphDrawingCanvas(
             drawCircle(color = Color(0xFF080808), radius = lensRadius * 0.85f, center = blLensCenter)
             drawCircle(color = Color(0xFF2C2C2C), radius = lensRadius * 0.85f, center = blLensCenter, style = Stroke(2.dp.toPx()))
 
-            // Bottom-right telephoto / periscope
+            // Bottom-right periscope/telephoto
             val periWidth = cameraRadius * 0.54f
             val periHeight = cameraRadius * 0.36f
             val periLeft = center.x + cameraRadius * 0.06f
@@ -361,17 +416,17 @@ fun GlyphDrawingCanvas(
                 color = Color(0xFF0E0E0E),
                 topLeft = Offset(periLeft, periTop),
                 size = Size(periWidth, periHeight),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(10.dp.toPx(), 10.dp.toPx())
+                cornerRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx())
             )
             drawRoundRect(
                 color = Color(0xFF2C2C2C),
                 topLeft = Offset(periLeft, periTop),
                 size = Size(periWidth, periHeight),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(10.dp.toPx(), 10.dp.toPx()),
+                cornerRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx()),
                 style = Stroke(1.5.dp.toPx())
             )
 
-            // 2. Draw Glyph Segments
+            // 2. Draw 3 Physical Glyph Strips: Left Arc, Bottom-Left Slash, Right Arc
             val arcRect = Rect(
                 center.x - trackRadius,
                 center.y - trackRadius,
@@ -411,13 +466,13 @@ fun GlyphDrawingCanvas(
                 if (isOn) {
                     drawArc(
                         color = Color.White.copy(alpha = 0.35f * brightness),
-                        startAngle = seg.startAngleDeg - 1.5f,
-                        sweepAngle = seg.sweepAngleDeg + 3f,
+                        startAngle = seg.startAngleDeg - 2f,
+                        sweepAngle = seg.sweepAngleDeg + 4f,
                         useCenter = false,
                         topLeft = arcRect.topLeft,
                         size = arcRect.size,
                         style = Stroke(
-                            width = trackThickness + 8.dp.toPx(),
+                            width = trackThickness + 10.dp.toPx(),
                             cap = StrokeCap.Round
                         )
                     )
