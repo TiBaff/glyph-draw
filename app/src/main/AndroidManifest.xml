@@ -11,6 +11,11 @@
         android:roundIcon="@drawable/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.GlyphDrawAMOLED">
+
+        <meta-data
+            android:name="NothingKey"
+            android:value="test" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
